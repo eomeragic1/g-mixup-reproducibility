@@ -28,6 +28,10 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s: - %(message)s', date
 
 
 def prepare_dataset_x(dataset):
+    # Function prepares the node feature matrix: if the max node degree of that graph is less than 2000,
+    # the feature matrix will be one hot encoded degree of each node (feature vector of one node will be all 0's except
+    # in the column corresponding to that node's degree, where it will be 1). If the max node degree is higher than
+    # 2000, each node will only have 1 feature, whose value will be normalised degree of that node.
     if dataset[0].x is None:
         max_degree = 0
         degs = []
@@ -52,6 +56,7 @@ def prepare_dataset_x(dataset):
 
 
 def prepare_dataset_onehot_y(dataset):
+    # Function one-hot encodes the labels of each graph
     y_set = set()
     for data in dataset:
         y_set.add(int(data.y))
@@ -180,12 +185,12 @@ if __name__ == '__main__':
 
     avg_num_nodes, avg_num_edges, avg_density, median_num_nodes, median_num_edges, median_density = stat_graph(
         dataset[: train_nums])
-    logger.info(f"avg num nodes of training graphs: {avg_num_nodes}")
-    logger.info(f"avg num edges of training graphs: {avg_num_edges}")
-    logger.info(f"avg density of training graphs: {avg_density}")
-    logger.info(f"median num nodes of training graphs: {median_num_nodes}")
-    logger.info(f"median num edges of training graphs: {median_num_edges}")
-    logger.info(f"median density of training graphs: {median_density}")
+    logger.info(f"Avg num nodes of training graphs: {avg_num_nodes}")
+    logger.info(f"Avg num edges of training graphs: {avg_num_edges}")
+    logger.info(f"Avg density of training graphs: {avg_density}")
+    logger.info(f"Median num nodes of training graphs: {median_num_nodes}")
+    logger.info(f"Median num edges of training graphs: {median_num_edges}")
+    logger.info(f"Median density of training graphs: {median_density}")
 
     resolution = int(median_num_nodes)
 

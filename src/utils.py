@@ -74,8 +74,12 @@ def align_graphs(graphs: List[np.ndarray],
                  padding: bool = False, N: int = None) -> Tuple[List[np.ndarray], List[np.ndarray], int, int]:
     """
     Align multiple graphs by sorting their nodes by descending node degrees
+    What this function does is it orders each graph adjacency matrix so that the degrees are sorted starting from
+    highest to lowest
+
     :param graphs: a list of binary adjacency matrices
     :param padding: whether padding graphs to the same size or not
+    :param N: whether to cut the graphs at size N (keeping highest-degree nodes)
     :return:
         aligned_graphs: a list of aligned adjacency matrices
         normalized_node_degrees: a list of sorted normalized node degrees (as node distributions)
@@ -363,6 +367,8 @@ def split_class_x_graphs(dataset):
 
 
 def split_class_graphs(dataset):
+    # Function outputs a list of lists, where each inner list contains dense adjacency matrices of graphs of same class
+    # Example : output = [[g1_label0,g2_label0,g3_label0,...], [g1_label1,g2_label1,...],...]
     y_list = []
     for data in dataset:
         y_list.append(tuple(data.y.tolist()))

@@ -162,10 +162,7 @@ def estimate_graphon(graphs: List[np.ndarray], method, args) -> Tuple[np.ndarray
 
 
 
-
-
-
-
+# In the paper they said that they used LG as the step function approximator, check with authors !!
 def universal_svd(aligned_graphs: List[np.ndarray], threshold: float = 2.02) -> np.ndarray:
     """
     Estimate a graphon by universal singular value thresholding.
@@ -196,9 +193,6 @@ def universal_svd(aligned_graphs: List[np.ndarray], threshold: float = 2.02) -> 
     graphon[graphon < 0] = 0
     graphon = graphon.numpy()
     return graphon
-
-
-
 
 
 def guess_rank(matrix: torch.Tensor) -> int:
