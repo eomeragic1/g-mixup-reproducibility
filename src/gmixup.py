@@ -71,8 +71,6 @@ def mixup_cross_entropy_loss(input, target, size_average=True):
     """
     assert input.size() == target.size()
     assert isinstance(input, Variable) and isinstance(target, Variable)
-
-    # The line below might need log(input) if the model only outputs softmax, will check
     loss = - torch.sum(input * target)
     return loss / input.size()[0] if size_average else loss
 
