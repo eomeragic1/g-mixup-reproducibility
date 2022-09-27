@@ -115,15 +115,20 @@ def align_graphs(graphs: List[np.ndarray],
             aligned_graph = np.zeros((max_num, max_num))
             aligned_graph[:num_i, :num_i] = sorted_graph
 
-            normalized_node_degrees.append(normalized_node_degree)
-            aligned_graphs.append(aligned_graph)
+            if N:
+                normalized_node_degrees.append(normalized_node_degree[:N, :])
+                aligned_graphs.append(aligned_graph[:N, :N])
+            else:
+                normalized_node_degrees.append(normalized_node_degree)
+                aligned_graphs.append(aligned_graph)
         else:
-            normalized_node_degrees.append(sorted_node_degree)
-            aligned_graphs.append(sorted_graph)
+            if N:
+                normalized_node_degrees.append(sorted_node_degree[:N, :])
+                aligned_graphs.append(sorted_graph[:N, :N])
+            else:
+                normalized_node_degrees.append(sorted_node_degree)
+                aligned_graphs.append(sorted_graph)
 
-        if N:
-            aligned_graphs = [aligned_graph[:N, :N] for aligned_graph in aligned_graphs]
-            normalized_node_degrees = normalized_node_degrees[:N]
 
     return aligned_graphs, normalized_node_degrees, max_num, min_num
 

@@ -183,8 +183,9 @@ def universal_svd(aligned_graphs: List[np.ndarray], threshold: float = 2.02) -> 
         sum_graph = aligned_graphs[0, :, :]  # (N, N)
 
     num_nodes = sum_graph.size(0)
-
+    print('Doing SVD of matrix of size: ', num_nodes)
     u, s, v = torch.svd(sum_graph)
+    print('Finished SVD!')
     singular_threshold = threshold * (num_nodes ** 0.5)
     binary_s = torch.lt(s, singular_threshold)
     s[binary_s] = 0
