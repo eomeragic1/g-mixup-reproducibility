@@ -1,7 +1,7 @@
 # some code are from https://github.com/HongtengXu/SGWB-Graphon
 
 import copy
-import cv2
+# import cv2
 import numpy as np
 import torch
 
@@ -144,21 +144,21 @@ def estimate_target_distribution(probs: List[np.ndarray], dim_t: int = None) -> 
     return p_t
 
 
-def estimate_graphon(graphs: List[np.ndarray], method, args) -> Tuple[np.ndarray, np.ndarray]:
-    if method == 'GWB' or method == 'SGWB' or method == 'FGWB' or method == 'SFGWB':
-        aligned_graphs, normalized_node_degrees, max_num, min_num = align_graphs(graphs, padding=False)
-    else:
-        aligned_graphs, normalized_node_degrees, max_num, min_num = align_graphs(graphs, padding=True)
-
-    block_size = int(np.log2(max_num) + 1)
-    num_blocks = int(max_num / block_size)
-    p_b = estimate_target_distribution(normalized_node_degrees, dim_t=num_blocks)
-
-
-    stepfunc = universal_svd(aligned_graphs, threshold=args.threshold_usvt)
-
-    graphon = cv2.resize(stepfunc, dsize=(args.r, args.r), interpolation=cv2.INTER_LINEAR)
-    return stepfunc, graphon
+# def estimate_graphon(graphs: List[np.ndarray], method, args) -> Tuple[np.ndarray, np.ndarray]:
+#     if method == 'GWB' or method == 'SGWB' or method == 'FGWB' or method == 'SFGWB':
+#         aligned_graphs, normalized_node_degrees, max_num, min_num = align_graphs(graphs, padding=False)
+#     else:
+#         aligned_graphs, normalized_node_degrees, max_num, min_num = align_graphs(graphs, padding=True)
+#
+#     block_size = int(np.log2(max_num) + 1)
+#     num_blocks = int(max_num / block_size)
+#     p_b = estimate_target_distribution(normalized_node_degrees, dim_t=num_blocks)
+#
+#
+#     stepfunc = universal_svd(aligned_graphs, threshold=args.threshold_usvt)
+#
+#     graphon = cv2.resize(stepfunc, dsize=(args.r, args.r), interpolation=cv2.INTER_LINEAR)
+#     return stepfunc, graphon
 
 
 
