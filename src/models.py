@@ -1,28 +1,9 @@
-from torch_geometric.nn import GINConv, global_mean_pool, JumpingKnowledge, GCN2Conv
-from torch.nn import Linear, Sequential, ReLU, BatchNorm1d as BN
-from math import ceil
-from torch_geometric.nn import DenseSAGEConv, dense_diff_pool, JumpingKnowledge
-import torch
-import torch.nn.functional as F
-from torch.nn import Linear
-from torch_geometric.nn import GCNConv, global_mean_pool, JumpingKnowledge
-import torch
-import torch.nn.functional as F
-from torch.nn import Linear
-from torch_geometric.nn import SAGEConv, global_mean_pool, JumpingKnowledge
-import torch
-import torch.nn.functional as F
-from torch_geometric.datasets import TUDataset
-from torch_geometric.data import DataLoader
-from torch_geometric.nn import GraphConv, TopKPooling
+from torch_geometric.nn import GINConv, GCN2Conv, DenseSAGEConv, global_mean_pool, GraphConv, TopKPooling
 from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
 from math import ceil
-
 import torch
 import torch.nn.functional as F
-from torch.nn import Linear
-from torch_geometric.datasets import TUDataset
-from torch_geometric.data import DataLoader
+from torch.nn import Linear, Sequential, ReLU
 from torch_geometric.nn import GCNConv, DenseGraphConv, dense_mincut_pool, dense_diff_pool
 from torch_geometric.utils import to_dense_batch, to_dense_adj
 
@@ -79,6 +60,7 @@ class GIN(torch.nn.Module):
         x = self.fc2(x)
         return F.log_softmax(x, dim=-1)
 
+
 class GCN(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers, alpha=0.5, theta=1.0,
                  shared_weights=True, dropout=0.0):
@@ -112,6 +94,7 @@ class GCN(torch.nn.Module):
 
         return F.log_softmax(x, dim=-1)
 
+
 class TopKNet(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
         super(TopKNet, self).__init__()
@@ -123,9 +106,9 @@ class TopKNet(torch.nn.Module):
         self.conv3 = GraphConv(hidden_channels, hidden_channels)
         self.pool3 = TopKPooling(hidden_channels, ratio=0.8)
 
-        self.lin1 = torch.nn.Linear(2*hidden_channels, hidden_channels)
-        self.lin2 = torch.nn.Linear(hidden_channels, hidden_channels/2)
-        self.lin3 = torch.nn.Linear(hidden_channels/2, out_channels)
+        self.lin1 = torch.nn.Linear(2 * hidden_channels, hidden_channels)
+        self.lin2 = torch.nn.Linear(hidden_channels, hidden_channels / 2)
+        self.lin3 = torch.nn.Linear(hidden_channels / 2, out_channels)
 
     def forward(self, data):
         x, edge_index, batch = data.x, data.edge_index, data.batch
@@ -150,6 +133,7 @@ class TopKNet(torch.nn.Module):
         x = F.log_softmax(self.lin3(x), dim=-1)
 
         return x
+
 
 class DiffPoolBlock(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels,
