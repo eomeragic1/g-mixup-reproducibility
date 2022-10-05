@@ -66,16 +66,15 @@ class GCN(torch.nn.Module):
                  shared_weights=True, dropout=0.0):
         super(GCN, self).__init__()
 
-        self.lins = torch.nn.ModuleList()
-        self.lins.append(Linear(in_channels, hidden_channels))
-        self.lins.append(Linear(hidden_channels, out_channels))
-
         self.convs = torch.nn.ModuleList()
         for layer in range(num_layers):
             self.convs.append(
                 GCN2Conv(hidden_channels, alpha, theta, layer + 1,
                          shared_weights, normalize=False))
 
+        self.lins = torch.nn.ModuleList()
+        self.lins.append(Linear(in_channels, hidden_channels))
+        self.lins.append(Linear(hidden_channels, out_channels))
         self.dropout = dropout
 
     def forward(self, x, adj_t, batch):
@@ -107,12 +106,10 @@ class TopKNet(torch.nn.Module):
         self.pool3 = TopKPooling(hidden_channels, ratio=0.8)
 
         self.lin1 = torch.nn.Linear(2 * hidden_channels, hidden_channels)
-        self.lin2 = torch.nn.Linear(hidden_channels, hidden_channels / 2)
-        self.lin3 = torch.nn.Linear(hidden_channels / 2, out_channels)
+        self.lin2 = torch.nn.Linear(hidden_channels, int(hidden_channels / 2))
+        self.lin3 = torch.nn.Linear(int(hidden_channels / 2), out_channels)
 
-    def forward(self, data):
-        x, edge_index, batch = data.x, data.edge_index, data.batch
-
+    def forward(self, x, edge_index, batch):
         x = F.relu(self.conv1(x, edge_index))
         x, edge_index, _, batch, _, _ = self.pool1(x, edge_index, None, batch)
         x1 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
@@ -162,8 +159,6 @@ class DiffPoolBlock(torch.nn.Module):
         return x
 
     def forward(self, x, adj, mask=None):
-        batch_size, num_nodes, in_channels = x.size()
-
         x0 = x
         x1 = self.bn(1, F.relu(self.conv1(x0, adj, mask)))
         x2 = self.bn(2, F.relu(self.conv2(x1, adj, mask)))
@@ -194,7 +189,9 @@ class DiffPoolNet(torch.nn.Module):
         self.lin1 = torch.nn.Linear(3 * hidden_channels, hidden_channels)
         self.lin2 = torch.nn.Linear(hidden_channels, out_channels)
 
-    def forward(self, x, adj, batch, mask=None):
+    def forward(self, x, edge_index, batch, mask=None):
+        x, mask = to_dense_batch(x, batch)
+        adj = to_dense_adj(edge_index, batch)
         s = self.gnn1_pool(x, adj, mask)
         x = self.gnn1_embed(x, adj, mask)
 
@@ -210,7 +207,7 @@ class DiffPoolNet(torch.nn.Module):
         x = x.mean(dim=1)
         x = F.relu(self.lin1(x))
         x = self.lin2(x)
-        return F.log_softmax(x, dim=-1), l1 + l2, e1 + e2
+        return F.log_softmax(x, dim=-1)
 
 
 class MinCutPoolNet(torch.nn.Module):
@@ -249,4 +246,4 @@ class MinCutPoolNet(torch.nn.Module):
         x = x.mean(dim=1)
         x = F.relu(self.lin1(x))
         x = self.lin2(x)
-        return F.log_softmax(x, dim=-1), mc1 + mc2, o1 + o2
+        return F.log_softmax(x, dim=-1)
