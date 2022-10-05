@@ -65,7 +65,7 @@ class GCN(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers, alpha=0.5, theta=1.0,
                  shared_weights=True, dropout=0.0):
         super(GCN, self).__init__()
-
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.convs = torch.nn.ModuleList()
         for layer in range(num_layers):
             self.convs.append(
@@ -80,10 +80,10 @@ class GCN(torch.nn.Module):
     def forward(self, x, adj_t, batch):
         x = F.dropout(x, self.dropout, training=self.training)
         x = x_0 = self.lins[0](x).relu()
-
+        
         for conv in self.convs:
             h = F.dropout(x, self.dropout, training=self.training)
-            h = conv(h, x_0, adj_t)
+            h = conv(h, x_0, adj_t, edge_weight=torch.ones(1, adj_t.size(dim=1)).to(self.device))
             x = h + x
             x = x.relu()
 
