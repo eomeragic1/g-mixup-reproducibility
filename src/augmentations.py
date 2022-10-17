@@ -70,7 +70,7 @@ def augment_dataset_dropedge(loader: torch_geometric.data.DataLoader, aug_percen
     for index in idx:
         loader.dataset[index].edge_index, _ = dropout_edge(loader.dataset[index].edge_index, p=0.1,
                                                            force_undirected=True)
-    return loader
+    return DataLoader(loader.dataset, batch_size=128, shuffle=True)
 
 def augment_dataset_dropnode(loader: torch_geometric.data.DataLoader, aug_percent=0.2):
     idx = random.sample(range(len(loader.dataset)), k=int(aug_percent * len(loader.dataset)))
