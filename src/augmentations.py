@@ -4,11 +4,17 @@ import copy
 import random
 from torch import Tensor
 from torch_geometric.data import Data
+from torch_geometric.loader import DataLoader
 from torch_geometric.utils import dropout, subgraph
 import torch_geometric.data
 import torch
 from torch_geometric.utils.num_nodes import maybe_num_nodes
 
+
+def relabel_edges(edge_index):
+    sorted_indices = torch.unique(edge_index, sorted=True).tolist()
+    mapping = {j: i for i, j in enumerate(sorted_indices)}
+    return edge_index.apply_(lambda x: mapping[x])
 
 def dropout_edge(edge_index: Tensor, p: float = 0.5,
                  force_undirected: bool = False,
@@ -69,9 +75,15 @@ def augment_dataset_dropedge(loader: torch_geometric.data.DataLoader, aug_percen
 def augment_dataset_dropnode(loader: torch_geometric.data.DataLoader, aug_percent=0.2):
     idx = random.sample(range(len(loader.dataset)), k=int(aug_percent * len(loader.dataset)))
     for index in idx:
-        new_edge_index, _, new_node_mask = dropout_node(loader.dataset[index].edge_index, p=0.5,
+        new_edge_index, _, new_node_mask = dropout_node(loader.dataset[index].edge_index, p=0.1,
                                                            num_nodes=loader.dataset[index].num_nodes)
-        loader.dataset[index] = Data(x=loader.dataset[index].x[new_node_mask, :], edge_index=new_edge_index,
-                                     y=loader.dataset[index].y)
-    return loader
+        num_nodes = torch.sum(new_node_mask).item()
+
+        # Could happen that all nodes are removed which creates batching problems, that's why we only keep the augs
+        # with at least one node
+        if num_nodes != 0:
+            loader.dataset[index] = Data(edge_index=relabel_edges(new_edge_index), y=loader.dataset[index].y,
+                                     x=loader.dataset[index].x[new_node_mask, :], num_nodes=num_nodes)
+    return DataLoader(loader.dataset, batch_size=128, shuffle=True)
+
 
