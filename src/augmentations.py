@@ -5,10 +5,12 @@ import random
 from torch import Tensor
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
-from torch_geometric.utils import dropout, subgraph
+from torch_geometric.utils import dropout, subgraph, from_scipy_sparse_matrix, to_dense_adj
 import torch_geometric.data
 import torch
 from torch_geometric.utils.num_nodes import maybe_num_nodes
+import scipy.sparse as sp
+import numpy as np
 
 
 def relabel_edges(edge_index):
@@ -87,3 +89,56 @@ def augment_dataset_dropnode(loader: torch_geometric.data.DataLoader, aug_percen
     return DataLoader(loader.dataset, batch_size=128, shuffle=True)
 
 
+def aug_subgraph(input_fea, input_adj, drop_percent=0.2):
+    input_adj = to_dense_adj(input_adj).squeeze(0)
+    node_num = input_fea.size()[0]
+
+    all_node_list = [i for i in range(node_num)]
+    s_node_num = int(node_num * (1 - drop_percent))
+    center_node_id = random.randint(0, node_num - 1)
+    sub_node_id_list = [center_node_id]
+    all_neighbor_list = []
+
+    for i in range(s_node_num - 1):
+
+        all_neighbor_list += torch.nonzero(input_adj[sub_node_id_list[i]], as_tuple=False).squeeze(1).tolist()
+
+        all_neighbor_list = list(set(all_neighbor_list))
+        new_neighbor_list = [n for n in all_neighbor_list if not n in sub_node_id_list]
+        if len(new_neighbor_list) != 0:
+            new_node = random.sample(new_neighbor_list, 1)[0]
+            sub_node_id_list.append(new_node)
+        else:
+            break
+
+    drop_node_list = sorted([i for i in all_node_list if not i in sub_node_id_list])
+
+    aug_input_fea = delete_row_col(input_fea, drop_node_list, only_row=True)
+    aug_input_adj = delete_row_col(input_adj, drop_node_list)
+
+    aug_input_fea = aug_input_fea
+    aug_input_adj = aug_input_adj.nonzero().t().contiguous()
+
+    return aug_input_fea, aug_input_adj
+
+def delete_row_col(input_matrix, drop_list, only_row=False):
+
+    remain_list = [i for i in range(input_matrix.shape[0]) if i not in drop_list]
+    out = input_matrix[remain_list, :]
+    if only_row:
+        return out
+    out = out[:, remain_list]
+
+    return out
+
+def augment_dataset_subgraph(loader: torch_geometric.data.DataLoader, aug_percent=0.2):
+    idx = random.sample(range(len(loader.dataset)), k=int(aug_percent * len(loader.dataset)))
+    for index in idx:
+        new_x, new_adj = aug_subgraph(loader.dataset[index].x, loader.dataset[index].edge_index, drop_percent=0.1)
+        num_nodes = new_x.size()[0]
+
+        # Could happen that all nodes are removed which creates batching problems, that's why we only keep the augs
+        # with at least one node
+        if num_nodes != 0:
+            loader.dataset[index] = Data(edge_index=new_adj, y=loader.dataset[index].y, x=new_x, num_nodes=num_nodes)
+    return DataLoader(loader.dataset, batch_size=128, shuffle=True)
