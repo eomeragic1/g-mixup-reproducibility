@@ -134,11 +134,12 @@ def delete_row_col(input_matrix, drop_list, only_row=False):
 def augment_dataset_subgraph(loader: torch_geometric.data.DataLoader, aug_percent=0.2):
     idx = random.sample(range(len(loader.dataset)), k=int(aug_percent * len(loader.dataset)))
     for index in idx:
-        new_x, new_adj = aug_subgraph(loader.dataset[index].x, loader.dataset[index].edge_index, drop_percent=0.1)
-        num_nodes = new_x.size()[0]
+        if loader.dataset[index].edge_index.numel():
+            new_x, new_adj = aug_subgraph(loader.dataset[index].x, loader.dataset[index].edge_index, drop_percent=0.1)
+            num_nodes = new_x.size()[0]
 
-        # Could happen that all nodes are removed which creates batching problems, that's why we only keep the augs
-        # with at least one node
-        if num_nodes != 0:
-            loader.dataset[index] = Data(edge_index=new_adj, y=loader.dataset[index].y, x=new_x, num_nodes=num_nodes)
+            # Could happen that all nodes are removed which creates batching problems, that's why we only keep the augs
+            # with at least one node
+            if num_nodes != 0:
+                loader.dataset[index] = Data(edge_index=new_adj, y=loader.dataset[index].y, x=new_x, num_nodes=num_nodes)
     return DataLoader(loader.dataset, batch_size=128, shuffle=True)
