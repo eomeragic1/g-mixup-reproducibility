@@ -67,17 +67,17 @@ def dropout_node(edge_index, p: float = 0.5,
                                         return_edge_mask=False)
     return edge_index, edge_attr, node_mask
 
-def augment_dataset_dropedge(loader: torch_geometric.data.DataLoader, aug_percent=0.2):
+def augment_dataset_dropedge(loader: torch_geometric.data.DataLoader, aug_percent=0.2, edge_percent = 0.1):
     idx = random.sample(range(len(loader.dataset)), k=int(aug_percent*len(loader.dataset)))
     for index in idx:
-        loader.dataset[index].edge_index, _ = dropout_edge(loader.dataset[index].edge_index, p=0.1,
+        loader.dataset[index].edge_index, _ = dropout_edge(loader.dataset[index].edge_index, p=edge_percent,
                                                            force_undirected=True)
     return DataLoader(loader.dataset, batch_size=128, shuffle=True)
 
-def augment_dataset_dropnode(loader: torch_geometric.data.DataLoader, aug_percent=0.2):
+def augment_dataset_dropnode(loader: torch_geometric.data.DataLoader, aug_percent=0.2, node_percent=0.1):
     idx = random.sample(range(len(loader.dataset)), k=int(aug_percent * len(loader.dataset)))
     for index in idx:
-        new_edge_index, _, new_node_mask = dropout_node(loader.dataset[index].edge_index, p=0.1,
+        new_edge_index, _, new_node_mask = dropout_node(loader.dataset[index].edge_index, p=node_percent,
                                                            num_nodes=loader.dataset[index].num_nodes)
         num_nodes = torch.sum(new_node_mask).item()
 
@@ -142,4 +142,44 @@ def augment_dataset_subgraph(loader: torch_geometric.data.DataLoader, aug_percen
             # with at least one node
             if num_nodes != 0:
                 loader.dataset[index] = Data(edge_index=new_adj, y=loader.dataset[index].y, x=new_x, num_nodes=num_nodes)
+    return DataLoader(loader.dataset, batch_size=128, shuffle=True)
+
+def add_random_edge(edge_index, p: float, force_undirected = False,
+                    num_nodes=None,
+                    training: bool = True):
+    if p < 0. or p > 1.:
+        raise ValueError(f'Ratio of added edges has to be between 0 and 1 '
+                         f'(got {p}')
+    if force_undirected and isinstance(num_nodes, (tuple, list)):
+        raise RuntimeError('`force_undirected` is not supported for'
+                           ' heterogeneous graphs')
+
+    device = edge_index.device
+    if not training or p == 0.0:
+        edge_index_to_add = torch.tensor([[], []], device=device)
+        return edge_index, edge_index_to_add
+
+    if not isinstance(num_nodes, (tuple, list)):
+        num_nodes = (num_nodes, num_nodes)
+    num_src_nodes = maybe_num_nodes(edge_index, num_nodes[0])
+    num_dst_nodes = maybe_num_nodes(edge_index, num_nodes[1])
+
+    num_edges_to_add = round(edge_index.size(1) * p)
+    row = torch.randint(0, num_src_nodes, size=(num_edges_to_add, ))
+    col = torch.randint(0, num_dst_nodes, size=(num_edges_to_add, ))
+
+    if force_undirected:
+        mask = row < col
+        row, col = row[mask], col[mask]
+        row, col = torch.cat([row, col]), torch.cat([col, row])
+    edge_index_to_add = torch.stack([row, col], dim=0).to(device)
+    edge_index = torch.cat([edge_index, edge_index_to_add], dim=1)
+    return edge_index, edge_index_to_add
+
+
+def augment_dataset_addedge(loader: torch_geometric.data.DataLoader, aug_percent=1, edge_percent = 0.1):
+    idx = random.sample(range(len(loader.dataset)), k=int(aug_percent * len(loader.dataset)))
+    for i in idx:
+        loader.dataset[i].edge_index, _ = add_random_edge(loader.dataset[i].edge_index, p=edge_percent,
+                                                           force_undirected=True, num_nodes=loader.dataset[i].num_nodes)
     return DataLoader(loader.dataset, batch_size=128, shuffle=True)
