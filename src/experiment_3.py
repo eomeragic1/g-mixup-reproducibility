@@ -15,6 +15,7 @@ from gmixup import mixup_cross_entropy_loss
 from augmentations import augment_dataset_dropedge, augment_dataset_dropnode, augment_dataset_subgraph
 from torch.optim.lr_scheduler import StepLR
 from pathlib import Path
+import time
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -65,6 +66,7 @@ def test(model, loader, num_classes):
     return acc, loss
 
 def run_test(id, dataset_name, model_name, seed, aug):
+    start = time.time()
     data_path = './'
     epochs = 300
     batch_size = 128
@@ -200,9 +202,11 @@ def run_test(id, dataset_name, model_name, seed, aug):
         #        'Epoch: {:03d}, Train Loss: {:.6f}, Val Loss: {:.6f}, Test Loss: {:.6f}, Train acc: {: .6f}, Val Acc: {: .6f}, Test Acc: {: .6f}'.format(
         #            epoch, train_loss, val_loss, test_loss, train_acc, val_acc, test_acc))
 
+    end = time.time()
+    total_time = f'{end - start:.2f}'
     with open('../results/train_log_exp3.csv', 'a') as f:
         f.write(
-            f'{dataset_name}, {model_name}, {seed}, {aug}, {best_epoch}, {model_test_acc:.6f}, {model_test_loss:.4f}, {max_val_acc:.6f}, {model_val_loss:.4f}\n')
+            f'{dataset_name}, {model_name}, {seed}, {aug}, {best_epoch}, {model_test_acc:.6f}, {model_test_loss:.4f}, {max_val_acc:.6f}, {model_val_loss:.4f}, {device}, {total_time}\n')
     if model_name == 'GCN':
         with open('../results/losses.txt', 'a') as f:
             f.write(
@@ -220,7 +224,7 @@ if __name__ == '__main__':
     path = Path('../results/train_log_exp3.csv')
     if not path.is_file():
         with open(path, 'w') as f:
-            f.write('Dataset, Model, Seed, Aug, BestEpoch, TestAcc, TestLoss, ValAcc, ValLoss\n')
+            f.write('Dataset, Model, Seed, Aug, BestEpoch, TestAcc, TestLoss, ValAcc, ValLoss, Device, Time\n')
 
     combination_list = []
     for dataset_name in dataset_names:
@@ -232,6 +236,6 @@ if __name__ == '__main__':
     print(f'Possible combinations: {len(combination_list)}')
 
     for i, comb in enumerate(combination_list):
-        if i >= 166:
+        if i >= 0:
             run_test(i, comb['dataset_name'], comb['model'], comb['seed'], comb['aug'])
 
