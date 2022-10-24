@@ -14,6 +14,7 @@ from models import GIN, GCN, DiffPoolNet, TopKNet, MinCutPoolNet
 from gmixup import mixup_cross_entropy_loss
 from augmentations import augment_dataset_dropedge, augment_dataset_dropnode, augment_dataset_subgraph
 from torch.optim.lr_scheduler import StepLR
+from pathlib import Path
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -199,9 +200,9 @@ def run_test(id, dataset_name, model_name, seed, aug):
         #        'Epoch: {:03d}, Train Loss: {:.6f}, Val Loss: {:.6f}, Test Loss: {:.6f}, Train acc: {: .6f}, Val Acc: {: .6f}, Test Acc: {: .6f}'.format(
         #            epoch, train_loss, val_loss, test_loss, train_acc, val_acc, test_acc))
 
-    with open('train_log.txt', 'a') as f:
+    with open('../results/train_log_exp3.csv', 'a') as f:
         f.write(
-            f'Dataset: {dataset_name}, Model: {model_name}, Seed: {seed}, Aug: {aug}, Best epoch: {best_epoch}, Test acc: {model_test_acc}, Test loss: {model_test_loss}, Val acc: {max_val_acc}, Val loss: {model_val_loss}\n')
+            f'{dataset_name}, {model_name}, {seed}, {aug}, {best_epoch}, {model_test_acc:.6f}, {model_test_loss:.4f}, {max_val_acc:.6f}, {model_val_loss:.4f}\n')
     if model_name == 'GCN':
         with open('../results/losses.txt', 'a') as f:
             f.write(
@@ -215,6 +216,11 @@ if __name__ == '__main__':
     models = ['GCN', 'GIN', 'MinCutPool', 'DiffPool', 'TopKPool']
     seeds = [1314, 11314, 21314, 31314, 41314, 51314, 61314, 71314, 0, 546464]
     augmentations = ['Vanilla', 'G-Mixup', 'Subgraph', 'DropEdge', 'DropNode']
+
+    path = Path('../results/train_log_exp3.csv')
+    if not path.is_file():
+        with open(path, 'w') as f:
+            f.write('Dataset, Model, Seed, Aug, BestEpoch, TestAcc, TestLoss, ValAcc, ValLoss\n')
 
     combination_list = []
     for dataset_name in dataset_names:
