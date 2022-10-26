@@ -236,6 +236,6 @@ if __name__ == '__main__':
     print(f'Possible combinations: {len(combination_list)}')
 
     for i, comb in enumerate(combination_list):
-        if i >= 0:
+        if i >= 229:
             run_test(i, comb['dataset_name'], comb['model'], comb['seed'], comb['aug'])
 
