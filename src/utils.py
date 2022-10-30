@@ -3,6 +3,7 @@ from skimage.restoration import denoise_tv_chambolle
 import numpy as np
 import copy
 import torch_geometric.transforms as T
+from torch import Tensor
 from torch_geometric.utils import degree, to_dense_adj
 import torch.nn.functional as F
 import torch
@@ -70,8 +71,8 @@ def graph_numpy2tensor(graphs: List[np.ndarray]) -> torch.Tensor:
     return torch.from_numpy(graph_tensor).float()
 
 
-def align_graphs(graphs: List[np.ndarray],
-                 padding: bool = False, N: int = None) -> Tuple[List[np.ndarray], List[np.ndarray], int, int]:
+def align_graphs(graphs: List[Data],
+                 padding: bool = False, N: int = None) -> Tuple[List[Tensor], List[Tensor], int, int, Tensor]:
     """
     Align multiple graphs by sorting their nodes by descending node degrees
     What this function does is it orders each graph adjacency matrix so that the degrees are sorted starting from
@@ -84,16 +85,21 @@ def align_graphs(graphs: List[np.ndarray],
         aligned_graphs: a list of aligned adjacency matrices
         normalized_node_degrees: a list of sorted normalized node degrees (as node distributions)
     """
-    num_nodes = [graphs[i].shape[0] for i in range(len(graphs))]
+    num_nodes = [graphs[i].num_nodes for i in range(len(graphs))]
     max_num = max(num_nodes)
     min_num = min(num_nodes)
 
+    if N:
+        sum_graph = np.zeros((N, N))
+    else:
+        sum_graph = np.zeros((max_num, max_num))
     aligned_graphs = []
     normalized_node_degrees = []
     for i in range(len(graphs)):
-        num_i = graphs[i].shape[0]
+        num_i = graphs[i].num_nodes
+        adj = to_dense_adj(graphs[i].edge_index)[0].numpy()
 
-        node_degree = 0.5 * np.sum(graphs[i], axis=0) + 0.5 * np.sum(graphs[i], axis=1)
+        node_degree = 0.5 * np.sum(adj, axis=0) + 0.5 * np.sum(adj, axis=1)
         node_degree /= np.sum(node_degree)
         idx = np.argsort(node_degree)  # ascending
         idx = idx[::-1]  # descending
@@ -101,7 +107,7 @@ def align_graphs(graphs: List[np.ndarray],
         sorted_node_degree = node_degree[idx]
         sorted_node_degree = sorted_node_degree.reshape(-1, 1)
 
-        sorted_graph = copy.deepcopy(graphs[i])
+        sorted_graph = copy.deepcopy(adj)
         sorted_graph = sorted_graph[idx, :]
         sorted_graph = sorted_graph[:, idx]
 
@@ -117,20 +123,23 @@ def align_graphs(graphs: List[np.ndarray],
 
             if N:
                 normalized_node_degrees.append(normalized_node_degree[:N, :])
-                aligned_graphs.append(aligned_graph[:N, :N])
+                sum_graph += aligned_graph[:N, :N]
+                aligned_graphs.append(dense_to_sparse(torch.from_numpy(aligned_graph[:N, :N]))[0])
             else:
                 normalized_node_degrees.append(normalized_node_degree)
-                aligned_graphs.append(aligned_graph)
+                sum_graph += aligned_graph
+                aligned_graphs.append(dense_to_sparse(torch.from_numpy(aligned_graph))[0])
         else:
             if N:
                 normalized_node_degrees.append(sorted_node_degree[:N, :])
-                aligned_graphs.append(sorted_graph[:N, :N])
+                sum_graph += sorted_graph[:N, :N]
+                aligned_graphs.append(dense_to_sparse(torch.from_numpy(sorted_graph[:N, :N]))[0])
             else:
                 normalized_node_degrees.append(sorted_node_degree)
-                aligned_graphs.append(sorted_graph)
+                sum_graph += sorted_graph
+                aligned_graphs.append(dense_to_sparse(torch.from_numpy(sorted_graph))[0])
 
-
-    return aligned_graphs, normalized_node_degrees, max_num, min_num
+    return aligned_graphs, normalized_node_degrees, max_num, min_num, torch.from_numpy(sum_graph/len(graphs))
 
 
 def align_x_graphs(graphs: List[np.ndarray], node_x: List[np.ndarray], padding: bool = False, N: int = None) -> Tuple[
@@ -380,14 +389,14 @@ def split_class_graphs(dataset):
         # print(y_list)
     num_classes = len(set(y_list))
 
-    all_graphs_list = []
-    for graph in dataset:
-        adj = to_dense_adj(graph.edge_index)[0].numpy()
-        all_graphs_list.append(adj)
+    # all_graphs_list = []
+    # for graph in dataset:
+    #     adj = to_dense_adj(graph.edge_index)[0].numpy()
+    #     all_graphs_list.append(adj)
 
     class_graphs = []
     for class_label in set(y_list):
-        c_graph_list = [all_graphs_list[i] for i in range(len(y_list)) if y_list[i] == class_label]
+        c_graph_list = [dataset[i] for i in range(len(y_list)) if y_list[i] == class_label]
         class_graphs.append((np.array(class_label), c_graph_list))
 
     return class_graphs

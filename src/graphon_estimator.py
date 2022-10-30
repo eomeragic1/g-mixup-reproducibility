@@ -6,10 +6,12 @@ import numpy as np
 import torch
 
 from skimage.restoration import denoise_tv_chambolle
-from typing import List, Tuple
+from typing import List
+
+from torch import Tensor
 
 
-def graph_numpy2tensor(graphs: List[np.ndarray]) -> torch.Tensor:
+def graph_numpy2tensor(graphs: List[Tensor]) -> torch.Tensor:
     """
     Convert a list of np arrays to a pytorch tensor
     :param graphs: [K (N, N) adjacency matrices]
@@ -18,105 +20,6 @@ def graph_numpy2tensor(graphs: List[np.ndarray]) -> torch.Tensor:
     """
     graph_tensor = np.array(graphs)
     return torch.from_numpy(graph_tensor).float()
-
-
-def align_graphs(graphs: List[np.ndarray],
-                 padding: bool = False) -> Tuple[List[np.ndarray], List[np.ndarray], int, int]:
-    """
-    Align multiple graphs by sorting their nodes by descending node degrees
-    :param graphs: a list of binary adjacency matrices
-    :param padding: whether padding graphs to the same size or not
-    :return:
-        aligned_graphs: a list of aligned adjacency matrices
-        normalized_node_degrees: a list of sorted normalized node degrees (as node distributions)
-    """
-    num_nodes = [graphs[i].shape[0] for i in range(len(graphs))]
-    max_num = max(num_nodes)
-    min_num = min(num_nodes)
-
-    aligned_graphs = []
-    normalized_node_degrees = []
-    for i in range(len(graphs)):
-        num_i = graphs[i].shape[0]
-
-        node_degree = 0.5 * np.sum(graphs[i], axis=0) + 0.5 * np.sum(graphs[i], axis=1)
-        node_degree /= np.sum(node_degree)
-        idx = np.argsort(node_degree)  # ascending
-        idx = idx[::-1]  # descending
-
-
-        sorted_node_degree = node_degree[idx]
-        sorted_node_degree = sorted_node_degree.reshape(-1, 1)
-
-        sorted_graph = copy.deepcopy(graphs[i])
-        sorted_graph = sorted_graph[idx, :]
-        sorted_graph = sorted_graph[:, idx]
-
-        if padding:
-            # normalized_node_degree = np.ones((max_num, 1)) / max_num
-            normalized_node_degree = np.zeros((max_num, 1))
-            normalized_node_degree[:num_i, :] = sorted_node_degree
-            aligned_graph = np.zeros((max_num, max_num))
-            aligned_graph[:num_i, :num_i] = sorted_graph
-            normalized_node_degrees.append(normalized_node_degree)
-            aligned_graphs.append(aligned_graph)
-        else:
-            # normalized_node_degree = np.ones(sorted_node_degree.shape) / sorted_node_degree.shape[0]
-            # normalized_node_degrees.append(normalized_node_degree)
-            normalized_node_degrees.append(sorted_node_degree)
-            aligned_graphs.append(sorted_graph)
-
-    return aligned_graphs, normalized_node_degrees, max_num, min_num
-
-
-def align_graphs_centrality(graphs: List[np.ndarray],
-                 padding: bool = False) -> Tuple[List[np.ndarray], List[np.ndarray], int, int]:
-    """
-    Align multiple graphs by sorting their nodes by descending node degrees
-    :param graphs: a list of binary adjacency matrices
-    :param padding: whether padding graphs to the same size or not
-    :return:
-        aligned_graphs: a list of aligned adjacency matrices
-        normalized_node_degrees: a list of sorted normalized node degrees (as node distributions)
-    """
-    num_nodes = [graphs[i].shape[0] for i in range(len(graphs))]
-    max_num = max(num_nodes)
-    min_num = min(num_nodes)
-
-    aligned_graphs = []
-    normalized_node_degrees = []
-    for i in range(len(graphs)):
-        num_i = graphs[i].shape[0]
-
-        node_degree = 0.5 * np.sum(graphs[i], axis=0) + 0.5 * np.sum(graphs[i], axis=1)
-        node_degree /= np.sum(node_degree)
-        idx = np.argsort(node_degree)  # ascending
-        idx = idx[::-1]  # descending
-
-        sorted_node_degree = node_degree[idx]
-        sorted_node_degree = sorted_node_degree.reshape(-1, 1)
-
-        sorted_graph = copy.deepcopy(graphs[i])
-        sorted_graph = sorted_graph[idx, :]
-        sorted_graph = sorted_graph[:, idx]
-
-        if padding:
-            # normalized_node_degree = np.ones((max_num, 1)) / max_num
-            normalized_node_degree = np.zeros((max_num, 1))
-            normalized_node_degree[:num_i, :] = sorted_node_degree
-            aligned_graph = np.zeros((max_num, max_num))
-            aligned_graph[:num_i, :num_i] = sorted_graph
-            normalized_node_degrees.append(normalized_node_degree)
-            aligned_graphs.append(aligned_graph)
-        else:
-            # normalized_node_degree = np.ones(sorted_node_degree.shape) / sorted_node_degree.shape[0]
-            # normalized_node_degrees.append(normalized_node_degree)
-            normalized_node_degrees.append(sorted_node_degree)
-            aligned_graphs.append(sorted_graph)
-
-    return aligned_graphs, normalized_node_degrees, max_num, min_num
-
-
 
 
 def estimate_target_distribution(probs: List[np.ndarray], dim_t: int = None) -> np.ndarray:
@@ -320,7 +223,7 @@ def gw_cost(cost_s: np.ndarray, cost_t: np.ndarray, trans: np.ndarray, p_s: np.n
     cost_st = node_cost_st(cost_s, cost_t, p_s, p_t)
     return cost_st - 2 * (cost_s @ trans @ cost_t.T)
 
-def largest_gap(aligned_graphs: List[np.ndarray], k: int) -> np.ndarray:
+def largest_gap(aligned_graphs: List[Tensor], k: int, sum_graph: Tensor = None) -> np.ndarray:
     """
     Estimate a graphon by a stochastic block model based n empirical degrees
     Reference:
@@ -331,13 +234,14 @@ def largest_gap(aligned_graphs: List[np.ndarray], k: int) -> np.ndarray:
     :param k: the number of blocks
     :return: a (r, r) estimation of graphon
     """
-    aligned_graphs = graph_numpy2tensor(aligned_graphs)
-    num_graphs = aligned_graphs.size(0)
+    if sum_graph is None:
+        aligned_graphs = graph_numpy2tensor(aligned_graphs)
+        num_graphs = aligned_graphs.size(0)
 
-    if num_graphs > 1:
-        sum_graph = torch.mean(aligned_graphs, dim=0)
-    else:
-        sum_graph = aligned_graphs[0, :, :]  # (N, N)
+        if num_graphs > 1:
+            sum_graph = torch.mean(aligned_graphs, dim=0)
+        else:
+            sum_graph = aligned_graphs[0, :, :]  # (N, N)
 
     num_nodes = sum_graph.size(0)
 
