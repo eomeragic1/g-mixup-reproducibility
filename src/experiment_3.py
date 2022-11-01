@@ -103,9 +103,9 @@ def run_test(id, dataset_name, model_name, seed, aug):
         class_graphs = split_class_graphs(dataset[:train_nums])
         graphons = []
         for label, graphs in class_graphs:
-            align_graphs_list, normalized_node_degrees, max_num, min_num = align_graphs(
+            align_graphs_list, normalized_node_degrees, max_num, min_num, sum_graph = align_graphs(
                 graphs, padding=True, N=graphon_size)
-            graphon = largest_gap(align_graphs_list, k=graphon_size)
+            graphon = largest_gap(align_graphs_list, k=graphon_size, sum_graph=sum_graph)
             graphons.append((label, graphon))
 
         num_sample = int(train_nums * aug_ratio / aug_num)
@@ -180,7 +180,7 @@ def run_test(id, dataset_name, model_name, seed, aug):
         elif aug == 'DropNode':
             new_train_loader = augment_dataset_dropnode(train_loader, 0.2)
         elif aug == 'Subgraph':
-            new_train_loader = augment_dataset_subgraph(train_loader, 0.2)
+            new_train_loader = augment_dataset_subgraph(train_loader, 0.1)
         else:
             new_train_loader = train_loader
         model, train_loss, train_acc = train(model, new_train_loader, num_classes, optimizer)
@@ -236,6 +236,6 @@ if __name__ == '__main__':
     print(f'Possible combinations: {len(combination_list)}')
 
     for i, comb in enumerate(combination_list):
-        if i >= 500:
+        if i >= 522:
             run_test(i, comb['dataset_name'], comb['model'], comb['seed'], comb['aug'])
 

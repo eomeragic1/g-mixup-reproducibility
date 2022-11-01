@@ -93,25 +93,23 @@ def aug_subgraph(input_fea, input_adj, drop_percent=0.2):
     input_adj = to_dense_adj(input_adj).squeeze(0)
     node_num = input_fea.size()[0]
 
-    all_node_list = [i for i in range(node_num)]
+    all_node_list = {i for i in range(node_num)}
     s_node_num = int(node_num * (1 - drop_percent))
     center_node_id = random.randint(0, node_num - 1)
-    sub_node_id_list = [center_node_id]
-    all_neighbor_list = []
+    sub_node_id_list = [center_node_id for _ in range(s_node_num)]
+    all_neighbor_list = set()
 
     for i in range(s_node_num - 1):
-
-        all_neighbor_list += torch.nonzero(input_adj[sub_node_id_list[i]], as_tuple=False).squeeze(1).tolist()
-
-        all_neighbor_list = list(set(all_neighbor_list))
-        new_neighbor_list = [n for n in all_neighbor_list if not n in sub_node_id_list]
-        if len(new_neighbor_list) != 0:
-            new_node = random.sample(new_neighbor_list, 1)[0]
-            sub_node_id_list.append(new_node)
+        new_neighbor_list = set(torch.nonzero(input_adj[list(sub_node_id_list)[i]], as_tuple=False).squeeze(1).tolist()).union(all_neighbor_list)
+        new_sampling_list = new_neighbor_list.difference(sub_node_id_list)
+        all_neighbor_list = new_neighbor_list
+        if len(new_sampling_list) != 0:
+            new_node = random.sample(new_sampling_list, 1)[0]
+            sub_node_id_list[i+1] = new_node
         else:
             break
 
-    drop_node_list = sorted([i for i in all_node_list if not i in sub_node_id_list])
+    drop_node_list = sorted(all_node_list.difference(sub_node_id_list))
 
     aug_input_fea = delete_row_col(input_fea, drop_node_list, only_row=True)
     aug_input_adj = delete_row_col(input_adj, drop_node_list)
@@ -135,7 +133,7 @@ def augment_dataset_subgraph(loader: torch_geometric.data.DataLoader, aug_percen
     idx = random.sample(range(len(loader.dataset)), k=int(aug_percent * len(loader.dataset)))
     for index in idx:
         if loader.dataset[index].edge_index.numel():
-            new_x, new_adj = aug_subgraph(loader.dataset[index].x, loader.dataset[index].edge_index, drop_percent=0.1)
+            new_x, new_adj = aug_subgraph(loader.dataset[index].x, loader.dataset[index].edge_index, drop_percent=0.15)
             num_nodes = new_x.size()[0]
 
             # Could happen that all nodes are removed which creates batching problems, that's why we only keep the augs
