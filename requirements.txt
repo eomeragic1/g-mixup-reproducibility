@@ -1,5 +1,7 @@
 numpy~=1.19.4
 scipy~=1.5.4
-torch~=1.13.0
+torch~=1.12.1
 torch_geometric~=2.1.0.post1
+torch_sparse~=0.6.15
 scikit-image~=0.19.3
+matplotlib~=3.6.1

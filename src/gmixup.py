@@ -1,6 +1,4 @@
-from time import time
 import logging
-import os
 import os.path as osp
 import numpy as np
 import time
@@ -15,8 +13,7 @@ from torch.autograd import Variable
 import random
 from torch.optim.lr_scheduler import StepLR
 
-from utils import stat_graph, split_class_graphs, align_graphs
-from utils import two_graphons_mixup, universal_svd
+from utils import stat_graph, split_class_graphs, align_graphs, two_graphons_mixup, universal_svd
 from graphon_estimator import universal_svd
 from models import GIN
 
