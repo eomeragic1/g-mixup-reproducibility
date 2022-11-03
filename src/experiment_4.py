@@ -1,4 +1,7 @@
+import copy
 import random
+from pathlib import Path
+
 import torch
 import os.path as osp
 from torch_geometric.datasets import TUDataset
@@ -12,12 +15,12 @@ from gmixup import prepare_dataset_x
 from utils import two_graphons_mixup
 from models import GIN, GCN, DiffPoolNet, TopKNet, MinCutPoolNet
 from gmixup import mixup_cross_entropy_loss
-from augmentations import augment_dataset_dropedge, augment_dataset_dropnode, augment_dataset_subgraph
+from src.augmentations import augment_dataset_dropedge, augment_dataset_dropnode, augment_dataset_subgraph
 from torch.optim.lr_scheduler import StepLR
-from pathlib import Path
 import time
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f'Running device: {device}')
 
 def train(model, train_loader, num_classes, optimizer):
     model.train()
@@ -48,6 +51,7 @@ def train(model, train_loader, num_classes, optimizer):
     acc = correct / total
     return model, loss, acc
 
+
 def test(model, loader, num_classes):
     model.eval()
     correct = 0
@@ -67,13 +71,25 @@ def test(model, loader, num_classes):
     loss = loss / total
     return acc, loss
 
-def run_test(id, dataset_name, model_name, seed, aug):
+def corrupt_labels(dataset, ratio):
+    rand_indices = random.sample(range(len(dataset)), k=int(ratio * len(dataset)))
+    for i in rand_indices:
+        if all(dataset[i].y == torch.Tensor([1, 0])):
+            dataset[i].y = torch.Tensor([0., 1.])
+        else:
+            dataset[i].y = torch.Tensor([1., 0.])
+    return dataset
+
+def run_test(id, dataset_name, corruption_ratio, seed, aug):
     start = time.time()
     data_path = './'
+
+    model_name = 'GCN'
     epochs = 300
-    batch_size = 16 if dataset_name[:4] != 'IMDB' and model_name not in ['GCN', 'GIN'] else 128
+    batch_size = 128
     lr = 0.01
     num_hidden = 64
+    no_test_runs = 10
     lam_range = [0.1, 0.2]
     aug_ratio = 0.2
     aug_num = 10
@@ -101,6 +117,8 @@ def run_test(id, dataset_name, model_name, seed, aug):
     random.seed(seed)
     random.shuffle(dataset)
 
+
+    start = time.time()
     if aug == 'G-Mixup':
         class_graphs = split_class_graphs(dataset[:train_nums])
         graphons = []
@@ -143,25 +161,14 @@ def run_test(id, dataset_name, model_name, seed, aug):
     val_dataset = new_dataset[new_train_nums:new_train_val_nums]
     test_dataset = new_dataset[new_train_val_nums:]
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    new_train_dataset = corrupt_labels(copy.deepcopy(train_dataset), ratio=corruption_ratio)
+    train_loader = DataLoader(new_train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size)
     test_loader = DataLoader(test_dataset, batch_size=batch_size)
 
-    if model_name == "GIN":
-        model = GIN(num_features=num_features, num_classes=num_classes, num_hidden=num_hidden).to(
-            device)
-    elif model_name == "GCN":
+    if model_name == "GCN":
         model = GCN(in_channels=num_features, hidden_channels=num_hidden, out_channels=num_classes,
                     num_layers=4).to(device)
-    elif model_name == "TopKPool":
-        model = TopKNet(in_channels=num_features, hidden_channels=num_hidden,
-                        out_channels=num_classes).to(device)
-    elif model_name == "DiffPool":
-        model = DiffPoolNet(in_channels=num_features, hidden_channels=num_hidden,
-                            out_channels=num_classes, max_nodes=median_num_nodes).to(device)
-    elif model_name == "MinCutPool":
-        model = MinCutPoolNet(in_channels=num_features, hidden_channels=num_hidden,
-                              out_channels=num_classes, max_nodes=median_num_nodes).to(device)
     else:
         model = None
 
@@ -178,11 +185,7 @@ def run_test(id, dataset_name, model_name, seed, aug):
     test_losses = []
     for epoch in range(1, epochs):
         if aug == 'DropEdge':
-            new_train_loader = augment_dataset_dropedge(train_loader, 0.2)
-        elif aug == 'DropNode':
-            new_train_loader = augment_dataset_dropnode(train_loader, 0.2)
-        elif aug == 'Subgraph':
-            new_train_loader = augment_dataset_subgraph(train_loader, 0.1)
+            new_train_loader = augment_dataset_dropedge(copy.deepcopy(train_loader), 0.2)
         else:
             new_train_loader = train_loader
         model, train_loss, train_acc = train(model, new_train_loader, num_classes, optimizer)
@@ -205,39 +208,34 @@ def run_test(id, dataset_name, model_name, seed, aug):
         #            epoch, train_loss, val_loss, test_loss, train_acc, val_acc, test_acc))
 
     end = time.time()
-    total_time = f'{end - start:.2f}'
-    with open('../results/train_log_exp3.csv', 'a') as f:
+    total_time = f'{end - start}:.2f'
+    with open('../results/train_log_exp4.csv', 'a') as f:
         f.write(
-            f'{dataset_name}, {model_name}, {seed}, {aug}, {best_epoch}, {model_test_acc:.6f}, {model_test_loss:.4f}, {max_val_acc:.6f}, {model_val_loss:.4f}, {device}, {total_time}\n')
-    if model_name == 'GCN':
-        with open('../results/losses.txt', 'a') as f:
-            f.write(
-                f'{dataset_name}, {seed}, train, {train_losses}\n{dataset_name}, {seed}, val, {val_losses}\n{dataset_name}, {seed}, test, {test_losses}\n')
+            f'{dataset_name},{corruption_ratio:.1f},{seed},{aug},{best_epoch},{model_test_acc:.6f},{model_test_loss:.4f},{max_val_acc:.6f},{model_val_loss:.4f},{device},{total_time:.2f}\n')
     print(
-        f'Job ID: {id}, Dataset: {dataset_name}, Model: {model_name}, Seed: {seed}, Aug: {aug}, Best epoch: {best_epoch}, Test acc: {model_test_acc}, Test loss: {model_test_loss}, Val acc: {max_val_acc}, Val loss: {model_val_loss}')
-
+        f'ID: {id}, Dataset: {dataset_name}, Model: {model_name}, Seed: {seed}, Aug: {aug}, Best epoch: {best_epoch}, Test acc: {model_test_acc}, Test loss: {model_test_loss}, Val acc: {max_val_acc}, Val loss: {model_val_loss}')
 
 if __name__ == '__main__':
-    dataset_names = ['IMDB-BINARY', 'IMDB-MULTI', 'REDDIT-BINARY', 'REDDIT-MULTI-5K', 'REDDIT-MULTI-12K']
-    models = ['GCN', 'GIN', 'MinCutPool', 'DiffPool', 'TopKPool']
+    dataset_names = ['IMDB-BINARY', 'REDDIT-BINARY']
+    model_name = 'GCN'
     seeds = [1314, 11314, 21314, 31314, 41314, 51314, 61314, 71314, 0, 546464]
-    augmentations = ['Vanilla', 'G-Mixup', 'Subgraph', 'DropEdge', 'DropNode']
+    augmentations = ['Vanilla', 'G-Mixup', 'DropEdge']
+    corruption_ratios = [0.1, 0.2, 0.3, 0.4]
 
-    path = Path('../results/train_log_exp3.csv')
+    path = Path('../results/train_log_exp4.csv')
     if not path.is_file():
         with open(path, 'w') as f:
             f.write('Dataset, Model, Seed, Aug, BestEpoch, TestAcc, TestLoss, ValAcc, ValLoss, Device, Time\n')
 
     combination_list = []
     for dataset_name in dataset_names:
-        for model in models:
+        for corruption_ratio in corruption_ratios:
             for seed in seeds:
                 for aug in augmentations:
-                    combination_list.append({'dataset_name': dataset_name, 'model': model, 'seed': seed, 'aug': aug})
+                    combination_list.append({'dataset_name': dataset_name, 'corruption_ratio': corruption_ratio, 'seed': seed, 'aug': aug})
 
     print(f'Possible combinations: {len(combination_list)}')
 
     for i, comb in enumerate(combination_list):
-        if i >= 650:
-            run_test(i, comb['dataset_name'], comb['model'], comb['seed'], comb['aug'])
-
+        if i >= 0:
+            run_test(i, comb['dataset_name'], comb['corruption_ratio'], comb['seed'], comb['aug'])
