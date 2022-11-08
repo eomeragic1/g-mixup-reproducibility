@@ -57,6 +57,7 @@ def prepare_dataset_x(dataset):
 
 def prepare_dataset_onehot_y(dataset):
     # Function one-hot encodes the labels of each graph
+    # TODO, I believe this part could be accelerated (made faster)
     y_set = set()
     for data in dataset:
         y_set.add(int(data.y))
