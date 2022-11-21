@@ -20,6 +20,14 @@ import time
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def train(model, train_loader, num_classes, optimizer):
+    """
+    TODO Explanation necessary - what are these variables?
+    loss_all
+    graph_all
+    correct
+    total
+    ????
+    """
     model.train()
     loss_all = 0
     graph_all = 0
@@ -30,14 +38,15 @@ def train(model, train_loader, num_classes, optimizer):
         data = data.to(device)
         optimizer.zero_grad()
         output = model(data.x, data.edge_index, data.batch)
+        # extract the labels from the dataset
         y = data.y.view(-1, num_classes)
-        #print(y.size())
-        #print(output.size())
+
         loss = mixup_cross_entropy_loss(output, y)
         loss.backward()
         loss_all += loss.item() * data.num_graphs
         graph_all += data.num_graphs
         optimizer.step()
+
         y = y.max(dim=1)[1]
         pred = output.max(dim=1)[1]
         correct += pred.eq(y).sum().item()
@@ -110,7 +119,9 @@ def run_test(id, dataset_name, model_name, seed, aug):
             graphon = largest_gap(align_graphs_list, k=graphon_size, sum_graph=sum_graph)
             graphons.append((label, graphon))
 
+        # TODO what is num_sample?
         num_sample = int(train_nums * aug_ratio / aug_num)
+        # TODO what does this line do, to what part of paper it corresponds?
         lam_list = np.random.uniform(low=lam_range[0], high=lam_range[1], size=(aug_num,))
 
         random.seed(seed)
@@ -119,6 +130,7 @@ def run_test(id, dataset_name, model_name, seed, aug):
             two_graphons = random.sample(graphons, 2)
             new_graph += two_graphons_mixup(two_graphons, la=lam, num_sample=num_sample)
 
+        # we increase the size of the dataset with synthethic graphs
         new_dataset = new_graph + dataset
         new_train_nums = train_nums + len(new_graph)
         new_train_val_nums = train_val_nums + len(new_graph)
@@ -148,8 +160,7 @@ def run_test(id, dataset_name, model_name, seed, aug):
     test_loader = DataLoader(test_dataset, batch_size=batch_size)
 
     if model_name == "GIN":
-        model = GIN(num_features=num_features, num_classes=num_classes, num_hidden=num_hidden).to(
-            device)
+        model = GIN(num_features=num_features, num_classes=num_classes, num_hidden=num_hidden).to(device)
     elif model_name == "GCN":
         model = GCN(in_channels=num_features, hidden_channels=num_hidden, out_channels=num_classes,
                     num_layers=4).to(device)
@@ -176,6 +187,7 @@ def run_test(id, dataset_name, model_name, seed, aug):
     train_losses = []
     val_losses = []
     test_losses = []
+    # model is trained
     for epoch in range(1, epochs):
         if aug == 'DropEdge':
             new_train_loader = augment_dataset_dropedge(train_loader, 0.2)
