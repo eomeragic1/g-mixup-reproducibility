@@ -125,7 +125,7 @@ def logical_test_experiment_2(dataset_name = 'REDDIT-BINARY', align_max_size = 5
     class_graphs = split_class_graphs(dataset)
     print('Finished splitting class graphs')
 
-    graphon_size = 50
+    graphon_size = 15
 
     graphons = []
     for i, (label, graphs) in enumerate(class_graphs):
