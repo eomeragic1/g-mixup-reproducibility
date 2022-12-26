@@ -218,13 +218,13 @@ def run_test(id, dataset_name, model_name, seed, aug):
 
     end = time.time()
     total_time = f'{end - start:.2f}'
-    with open('../results/train_log_exp3.csv', 'a') as f:
+    with open('../results/train_log_exp3_2nd_file.csv', 'a') as f:
         f.write(
             f'{dataset_name}, {model_name}, {seed}, {aug}, {best_epoch}, {model_test_acc:.6f}, {model_test_loss:.4f}, {max_val_acc:.6f}, {model_val_loss:.4f}, {device}, {total_time}\n')
-    if model_name == 'GCN':
-        with open('../results/losses.txt', 'a') as f:
+    if model_name == 'GCN' and aug in ['Vanilla', 'G-Mixup']:
+        with open('../results/losses_2.txt', 'a') as f:
             f.write(
-                f'{dataset_name}, {seed}, train, {train_losses}\n{dataset_name}, {seed}, val, {val_losses}\n{dataset_name}, {seed}, test, {test_losses}\n')
+                f'{dataset_name}, {aug}, {seed}, train, {train_losses}\n{dataset_name}, {aug}, {seed}, val, {val_losses}\n{dataset_name}, {aug}, {seed}, test, {test_losses}\n')
     print(
         f'Job ID: {id}, Dataset: {dataset_name}, Model: {model_name}, Seed: {seed}, Aug: {aug}, Best epoch: {best_epoch}, Test acc: {model_test_acc}, Test loss: {model_test_loss}, Val acc: {max_val_acc}, Val loss: {model_val_loss}')
 
@@ -233,9 +233,9 @@ if __name__ == '__main__':
     dataset_names = ['IMDB-BINARY', 'IMDB-MULTI', 'REDDIT-BINARY', 'REDDIT-MULTI-5K', 'REDDIT-MULTI-12K']
     models = ['GCN', 'GIN', 'MinCutPool', 'DiffPool', 'TopKPool']
     seeds = [1314, 11314, 21314, 31314, 41314, 51314, 61314, 71314, 0, 546464]
-    augmentations = ['Vanilla', 'G-Mixup', 'Subgraph', 'DropEdge', 'DropNode']
+    augmentations = ['Vanilla', 'G-Mixup', 'DropEdge', 'DropNode', 'Subgraph']
 
-    path = Path('../results/train_log_exp3.csv')
+    path = Path('../results/train_log_exp3_2nd_file.csv')
     if not path.is_file():
         with open(path, 'w') as f:
             f.write('Dataset, Model, Seed, Aug, BestEpoch, TestAcc, TestLoss, ValAcc, ValLoss, Device, Time\n')
@@ -250,6 +250,6 @@ if __name__ == '__main__':
     print(f'Possible combinations: {len(combination_list)}')
 
     for i, comb in enumerate(combination_list):
-        if i >= 650:
+        if i >= 65:
             run_test(i, comb['dataset_name'], comb['model'], comb['seed'], comb['aug'])
 
