@@ -71,17 +71,7 @@ def test(model, loader, num_classes):
     return acc, loss
 
 
-def corrupt_labels(dataset, ratio):
-    rand_indices = random.sample(range(len(dataset)), k=int(ratio * len(dataset)))
-    for i in rand_indices:
-        if all(dataset[i].y == torch.Tensor([1, 0])):
-            dataset[i].y = torch.Tensor([0., 1.])
-        else:
-            dataset[i].y = torch.Tensor([1., 0.])
-    return dataset
-
-
-def run_test(id, dataset_name, num_nodes, seed):
+def run_test(id, dataset_name, num_layers, seed, aug):
     start = time.time()
     data_path = './'
     model_name = 'GCN'
@@ -93,7 +83,6 @@ def run_test(id, dataset_name, num_nodes, seed):
     lam_range = [0.1, 0.2]
     aug_ratio = 0.2
     aug_num = 10
-    aug = 'G-Mixup'
 
     path = osp.join(data_path, dataset_name)
     dataset = TUDataset(path, name=dataset_name)
@@ -117,13 +106,14 @@ def run_test(id, dataset_name, num_nodes, seed):
     torch.manual_seed(seed)
     random.seed(seed)
     random.shuffle(dataset)
+
     if aug == 'G-Mixup':
         class_graphs = split_class_graphs(dataset[:train_nums])
         graphons = []
         for label, graphs in class_graphs:
             align_graphs_list, normalized_node_degrees, max_num, min_num, sum_graph = align_graphs(
-                graphs, padding=True, N=num_nodes)
-            graphon = largest_gap(align_graphs_list, k=num_nodes, sum_graph=sum_graph)
+                graphs, padding=True, N=graphon_size)
+            graphon = largest_gap(align_graphs_list, k=graphon_size, sum_graph=sum_graph)
             graphons.append((label, graphon))
 
         num_sample = int(train_nums * aug_ratio / aug_num)
@@ -157,19 +147,9 @@ def run_test(id, dataset_name, num_nodes, seed):
     val_loader = DataLoader(val_dataset, batch_size=batch_size)
     test_loader = DataLoader(test_dataset, batch_size=batch_size)
 
-    if model_name == "GIN":
-        model = GIN(num_features=num_features, num_classes=num_classes, num_hidden=num_hidden).to(device)
-    elif model_name == "GCN":
-        model = GCN(in_channels=num_features, hidden_channels=num_hidden, out_channels=num_classes, num_layers=4).to(
-            device)
-    elif model_name == "TopKPool":
-        model = TopKNet(in_channels=num_features, hidden_channels=num_hidden, out_channels=num_classes).to(device)
-    elif model_name == "DiffPool":
-        model = DiffPoolNet(in_channels=num_features, hidden_channels=num_hidden, out_channels=num_classes,
-                            max_nodes=median_num_nodes).to(device)
-    elif model_name == "MinCutPool":
-        model = MinCutPoolNet(in_channels=num_features, hidden_channels=num_hidden,
-                              out_channels=num_classes, max_nodes=median_num_nodes).to(device)
+    if model_name == "GCN":
+        model = GCN(in_channels=num_features, hidden_channels=num_hidden, out_channels=num_classes,
+                    num_layers=num_layers).to(device)
     else:
         model = None
 
@@ -187,10 +167,6 @@ def run_test(id, dataset_name, num_nodes, seed):
     for epoch in range(1, epochs):
         if aug == 'DropEdge':
             new_train_loader = augment_dataset_dropedge(copy.deepcopy(train_loader), aug_percent=0.2)
-        elif aug == 'DropNode':
-            new_train_loader = augment_dataset_dropnode(copy.deepcopy(train_loader), aug_percent=0.2)
-        elif aug == 'Subgraph':
-            new_train_loader = augment_dataset_subgraph(copy.deepcopy(train_loader), aug_percent=0.2)
         else:
             new_train_loader = train_loader
         model, train_loss, train_acc = train(model, new_train_loader, num_classes, optimizer)
@@ -207,43 +183,42 @@ def run_test(id, dataset_name, num_nodes, seed):
             model_test_acc = test_acc
             model_val_loss = val_loss
             best_epoch = epoch
-    # if epoch%20==0:
-    #    print(
-    #        'Epoch: {:03d}, Train Loss: {:.6f}, Val Loss: {:.6f}, Test Loss: {:.6f}, Train acc: {: .6f}, Val Acc: {: .6f}, Test Acc: {: .6f}'.format(
-    #            epoch, train_loss, val_loss, test_loss, train_acc, val_acc, test_acc))
+        # if epoch%20==0:
+        #    print(
+        #        'Epoch: {:03d}, Train Loss: {:.6f}, Val Loss: {:.6f}, Test Loss: {:.6f}, Train acc: {: .6f}, Val Acc: {: .6f}, Test Acc: {: .6f}'.format(
+        #            epoch, train_loss, val_loss, test_loss, train_acc, val_acc, test_acc))
 
     end = time.time()
     total_time = f'{end - start:.2f}'
-    with open('../results/train_log_exp6.csv', 'a') as f:
+    with open('../results/train_log_exp7.csv', 'a') as f:
         f.write(
-            f'{dataset_name},{model_name},{seed},{num_nodes},{best_epoch},{model_test_acc:.6f},{model_test_loss:.4f},{max_val_acc:.6f},{model_val_loss:.4f},{device},{total_time}\n')
+            f'{dataset_name},{aug},{seed},{num_layers},{best_epoch},{model_test_acc:.6f},{model_test_loss:.4f},{max_val_acc:.6f},{model_val_loss:.4f},{device},{total_time}\n')
     print(
-        f'ID: {id}, Dataset: {dataset_name}, Model: {model_name}, Seed: {seed}, Num_nodes: {num_nodes}, Best epoch: {best_epoch}, Test acc: {model_test_acc}, Test loss: {model_test_loss}, Val acc: {max_val_acc}, Val loss: {model_val_loss}')
+        f'ID: {id}, Dataset: {dataset_name}, Aug: {aug}, Seed: {seed}, Num_layers: {num_layers}, Best epoch: {best_epoch}, Test acc: {model_test_acc}, Test loss: {model_test_loss}, Val acc: {max_val_acc}, Val loss: {model_val_loss}')
 
 
 if __name__ == '__main__':
     dataset_names = ['IMDB-BINARY', 'REDDIT-BINARY']
     model_name = 'GCN'
     seeds = [1314, 11314, 21314, 31314, 41314, 51314, 61314, 71314, 0, 546464]
-    augmentations = 'G-Mixup'
+    augmentations = ['Vanilla', 'G-Mixup', 'DropEdge']
+    num_layers_list = [2, 3, 4, 5, 6, 6, 7, 8, 9]
 
-    path = Path('../results/train_log_exp6.csv')
+    path = Path('../results/train_log_exp7.csv')
     if not path.is_file():
         with open(path, 'w') as f:
-            f.write('Dataset,Model,Seed,NumNodes,BestEpoch,TestAcc,TestLoss,ValAcc,ValLoss,Device,Time\n')
+            f.write('Dataset,Aug,Seed,NumLayers,BestEpoch,TestAcc,TestLoss,ValAcc,ValLoss,Device,Time\n')
 
     combination_list = []
     for dataset_name in dataset_names:
-        if dataset_name == 'IMDB-BINARY':
-            num_nodes_list = [10, 15, 20, 25, 30, 35, 40]
-        else:
-            num_nodes_list = [200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800]
-        for num_nodes in num_nodes_list:
+        for num_layers in num_layers_list:
             for seed in seeds:
-                combination_list.append({'dataset': dataset_name, 'num_nodes': num_nodes, 'seed': seed})
+                for aug in augmentations:
+                    combination_list.append(
+                        {'dataset': dataset_name, 'num_layers': num_layers, 'seed': seed, 'aug': aug})
 
     print(f'Possible combinations: {len(combination_list)}')
 
     for i, comb in enumerate(combination_list):
-        if i >= 102:
-            run_test(i, comb['dataset'], comb['num_nodes'], comb['seed'])
+        if i >= 0:
+            run_test(i, comb['dataset'], comb['num_layers'], comb['seed'], comb['aug'])
