@@ -66,7 +66,7 @@ def estimate_target_distribution(probs: List[np.ndarray], dim_t: int = None) -> 
 
 
 # In the paper they said that they used LG as the step function approximator, check with authors !!
-def universal_svd(aligned_graphs: List[np.ndarray], threshold: float = 2.02) -> np.ndarray:
+def universal_svd(aligned_graphs: List[Tensor], threshold: float = 2.02, sum_graph: Tensor = None) -> np.ndarray:
     """
     Estimate a graphon by universal singular value thresholding.
     Reference:
@@ -77,13 +77,15 @@ def universal_svd(aligned_graphs: List[np.ndarray], threshold: float = 2.02) -> 
     :param threshold: the threshold for singular values
     :return: graphon: the estimated (r, r) graphon model
     """
-    aligned_graphs = graph_numpy2tensor(aligned_graphs)
-    num_graphs = aligned_graphs.size(0)
 
-    if num_graphs > 1:
-        sum_graph = torch.mean(aligned_graphs, dim=0)
-    else:
-        sum_graph = aligned_graphs[0, :, :]  # (N, N)
+    if sum_graph is None:
+        aligned_graphs = graph_numpy2tensor(aligned_graphs)
+        num_graphs = aligned_graphs.size(0)
+
+        if num_graphs > 1:
+            sum_graph = torch.mean(aligned_graphs, dim=0)
+        else:
+            sum_graph = aligned_graphs[0, :, :]  # (N, N)
 
     num_nodes = sum_graph.size(0)
     print('Doing SVD of matrix of size: ', num_nodes)

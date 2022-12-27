@@ -57,7 +57,6 @@ def prepare_dataset_x(dataset):
 
 def prepare_dataset_onehot_y(dataset):
     # Function one-hot encodes the labels of each graph
-    # TODO, I believe this part could be accelerated (made faster)
     y_set = set()
     for data in dataset:
         y_set.add(int(data.y))
@@ -86,7 +85,6 @@ def train(model, train_loader):
     loss_all = 0
     graph_all = 0
     for data in train_loader:
-        # print( "data.y", data.y )
         data = data.to(device)
         optimizer.zero_grad()
         output = model(data.x, data.edge_index, data.batch)
@@ -200,12 +198,12 @@ if __name__ == '__main__':
         graphons = []
         for label, graphs in class_graphs:
             logger.info(f"label: {label}, num_graphs:{len(graphs)}")
-            align_graphs_list, normalized_node_degrees, max_num, min_num = align_graphs(
+            align_graphs_list, normalized_node_degrees, max_num, min_num, sum_graph = align_graphs(
                 graphs, padding=True, N=resolution)
             logger.info(f"aligned graph {align_graphs_list[0].shape}")
 
             logger.info(f"ge: {ge}")
-            graphon = universal_svd(align_graphs_list, threshold=0.2)
+            graphon = universal_svd(align_graphs_list, threshold=0.2, sum_graph=sum_graph)
             graphons.append((label, graphon))
 
         for label, graphon in graphons:

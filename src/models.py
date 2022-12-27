@@ -80,7 +80,7 @@ class GCN(torch.nn.Module):
     def forward(self, x, adj_t, batch):
         x = F.dropout(x, self.dropout, training=self.training)
         x = x_0 = self.lins[0](x).relu()
-        
+
         for conv in self.convs:
             h = F.dropout(x, self.dropout, training=self.training)
             h = conv(h, x_0, adj_t, edge_weight=torch.ones(1, adj_t.size(dim=1)).to(self.device))
@@ -116,13 +116,13 @@ class TopKNet(torch.nn.Module):
 
         x = F.relu(self.conv2(x, edge_index))
         x, edge_index, _, batch, _, _ = self.pool2(x, edge_index, None, batch)
-        x2 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
+        x1 = x1 + torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
 
         x = F.relu(self.conv3(x, edge_index))
         x, edge_index, _, batch, _, _ = self.pool3(x, edge_index, None, batch)
-        x3 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
+        x1 = x1 + torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
 
-        x = x1 + x2 + x3
+        x = x1
 
         x = F.relu(self.lin1(x))
         x = F.dropout(x, p=0.5, training=self.training)

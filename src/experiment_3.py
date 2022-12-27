@@ -21,12 +21,10 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def train(model, train_loader, num_classes, optimizer):
     """
-    TODO Explanation necessary - what are these variables?
-    loss_all
-    graph_all
-    correct
-    total
-    ????
+    loss_all - used to memorize losses in training so we can plot them later
+    graph_all - used to memorize total number of graphs so we can normalize the losses
+    correct - total number of correctly classified examples
+    total - same as graph_all, used for calculating classification accuracy
     """
     model.train()
     loss_all = 0
@@ -34,7 +32,6 @@ def train(model, train_loader, num_classes, optimizer):
     correct = 0
     total = 0
     for data in train_loader:
-        # print( "data.y", data.y )
         data = data.to(device)
         optimizer.zero_grad()
         output = model(data.x, data.edge_index, data.batch)
@@ -119,9 +116,9 @@ def run_test(id, dataset_name, model_name, seed, aug):
             graphon = largest_gap(align_graphs_list, k=graphon_size, sum_graph=sum_graph)
             graphons.append((label, graphon))
 
-        # TODO what is num_sample?
+        # num_sample - number of new augmented graphs being added to dataset
         num_sample = int(train_nums * aug_ratio / aug_num)
-        # TODO what does this line do, to what part of paper it corresponds?
+        # lam_list - generates lambda for G-Mixup for each new graph that will be generated
         lam_list = np.random.uniform(low=lam_range[0], high=lam_range[1], size=(aug_num,))
 
         random.seed(seed)
@@ -130,7 +127,7 @@ def run_test(id, dataset_name, model_name, seed, aug):
             two_graphons = random.sample(graphons, 2)
             new_graph += two_graphons_mixup(two_graphons, la=lam, num_sample=num_sample)
 
-        # we increase the size of the dataset with synthethic graphs
+        # we increase the size of the dataset with synthetic graphs
         new_dataset = new_graph + dataset
         new_train_nums = train_nums + len(new_graph)
         new_train_val_nums = train_val_nums + len(new_graph)
@@ -144,12 +141,6 @@ def run_test(id, dataset_name, model_name, seed, aug):
     num_features = new_dataset[0].x.shape[1]
     num_classes = new_dataset[0].y.shape[0]
 
-    # avg_num_nodes, avg_num_edges, avg_density, median_num_nodes, median_num_edges, median_density = stat_graph(new_dataset[:new_train_nums])
-    # print(f"Avg num nodes of new training graphs: {avg_num_nodes}")
-    # print(f"Avg num edges of new training graphs: {avg_num_edges}")
-    # print(f"Avg density of new training graphs: {avg_density}")
-    # print(f"Median num edges of new training graphs: {median_num_edges}")
-    # print(f"Median density of new training graphs: {median_density}")
     train_dataset = new_dataset[:new_train_nums]
     random.shuffle(train_dataset)
     val_dataset = new_dataset[new_train_nums:new_train_val_nums]
@@ -230,8 +221,8 @@ def run_test(id, dataset_name, model_name, seed, aug):
 
 
 if __name__ == '__main__':
-    dataset_names = ['IMDB-BINARY', 'IMDB-MULTI', 'REDDIT-BINARY', 'REDDIT-MULTI-5K', 'REDDIT-MULTI-12K']
-    models = ['GCN', 'GIN', 'MinCutPool', 'DiffPool', 'TopKPool']
+    dataset_names = ['REDDIT-BINARY', 'REDDIT-MULTI-5K']
+    models = ['TopKPool']
     seeds = [1314, 11314, 21314, 31314, 41314, 51314, 61314, 71314, 0, 546464]
     augmentations = ['Vanilla', 'G-Mixup', 'DropEdge', 'DropNode', 'Subgraph']
 

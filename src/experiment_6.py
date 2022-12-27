@@ -23,6 +23,7 @@ import time
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Running device: {device}')
 
+
 def train(model, train_loader, num_classes, optimizer):
     model.train()
     loss_all = 0
@@ -30,13 +31,10 @@ def train(model, train_loader, num_classes, optimizer):
     correct = 0
     total = 0
     for data in train_loader:
-        # print( "data.y", data.y )
         data = data.to(device)
         optimizer.zero_grad()
         output = model(data.x, data.edge_index, data.batch)
         y = data.y.view(-1, num_classes)
-        #print(y.size())
-        #print(output.size())
         loss = mixup_cross_entropy_loss(output, y)
         loss.backward()
         loss_all += loss.item() * data.num_graphs
@@ -72,6 +70,7 @@ def test(model, loader, num_classes):
     loss = loss / total
     return acc, loss
 
+
 def corrupt_labels(dataset, ratio):
     rand_indices = random.sample(range(len(dataset)), k=int(ratio * len(dataset)))
     for i in rand_indices:
@@ -80,6 +79,7 @@ def corrupt_labels(dataset, ratio):
         else:
             dataset[i].y = torch.Tensor([1., 0.])
     return dataset
+
 
 def run_test(id, dataset_name, num_nodes, seed):
     start = time.time()
@@ -106,7 +106,7 @@ def run_test(id, dataset_name, num_nodes, seed):
     train_val_nums = int(len(dataset) * 0.8)
 
     avg_num_nodes, avg_num_edges, avg_density, median_num_nodes, median_num_edges, median_density = stat_graph(
-    dataset[:train_nums])
+        dataset[:train_nums])
     graphon_size = int(median_num_nodes)
     print(f"Avg num nodes of training graphs: {avg_num_nodes}")
     print(f"Avg num edges of training graphs: {avg_num_edges}")
@@ -148,12 +148,6 @@ def run_test(id, dataset_name, num_nodes, seed):
     num_features = new_dataset[0].x.shape[1]
     num_classes = new_dataset[0].y.shape[0]
 
-    # avg_num_nodes, avg_num_edges, avg_density, median_num_nodes, median_num_edges, median_density = stat_graph(new_dataset[:new_train_nums])
-    # print(f"Avg num nodes of new training graphs: {avg_num_nodes}")
-    # print(f"Avg num edges of new training graphs: {avg_num_edges}")
-    # print(f"Avg density of new training graphs: {avg_density}")
-    # print(f"Median num edges of new training graphs: {median_num_edges}")
-    # print(f"Median density of new training graphs: {median_density}")
     train_dataset = new_dataset[:new_train_nums]
     random.shuffle(train_dataset)
     val_dataset = new_dataset[new_train_nums:new_train_val_nums]
@@ -166,15 +160,16 @@ def run_test(id, dataset_name, num_nodes, seed):
     if model_name == "GIN":
         model = GIN(num_features=num_features, num_classes=num_classes, num_hidden=num_hidden).to(device)
     elif model_name == "GCN":
-        model = GCN(in_channels=num_features, hidden_channels=num_hidden, out_channels=num_classes, num_layers=4).to(device)
+        model = GCN(in_channels=num_features, hidden_channels=num_hidden, out_channels=num_classes, num_layers=4).to(
+            device)
     elif model_name == "TopKPool":
         model = TopKNet(in_channels=num_features, hidden_channels=num_hidden, out_channels=num_classes).to(device)
     elif model_name == "DiffPool":
         model = DiffPoolNet(in_channels=num_features, hidden_channels=num_hidden, out_channels=num_classes,
-                max_nodes=median_num_nodes).to(device)
+                            max_nodes=median_num_nodes).to(device)
     elif model_name == "MinCutPool":
         model = MinCutPoolNet(in_channels=num_features, hidden_channels=num_hidden,
-                  out_channels=num_classes, max_nodes=median_num_nodes).to(device)
+                              out_channels=num_classes, max_nodes=median_num_nodes).to(device)
     else:
         model = None
 
@@ -220,8 +215,10 @@ def run_test(id, dataset_name, num_nodes, seed):
     end = time.time()
     total_time = f'{end - start:.2f}'
     with open('../results/train_log_exp6.csv', 'a') as f:
-        f.write(f'{dataset_name},{model_name},{seed},{num_nodes},{best_epoch},{model_test_acc:.6f},{model_test_loss:.4f},{max_val_acc:.6f},{model_val_loss:.4f},{device},{total_time}\n')
-    print(f'ID: {id}, Dataset: {dataset_name}, Model: {model_name}, Seed: {seed}, Num_nodes: {num_nodes}, Best epoch: {best_epoch}, Test acc: {model_test_acc}, Test loss: {model_test_loss}, Val acc: {max_val_acc}, Val loss: {model_val_loss}')
+        f.write(
+            f'{dataset_name},{model_name},{seed},{num_nodes},{best_epoch},{model_test_acc:.6f},{model_test_loss:.4f},{max_val_acc:.6f},{model_val_loss:.4f},{device},{total_time}\n')
+    print(
+        f'ID: {id}, Dataset: {dataset_name}, Model: {model_name}, Seed: {seed}, Num_nodes: {num_nodes}, Best epoch: {best_epoch}, Test acc: {model_test_acc}, Test loss: {model_test_loss}, Val acc: {max_val_acc}, Val loss: {model_val_loss}')
 
 
 if __name__ == '__main__':

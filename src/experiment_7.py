@@ -23,6 +23,7 @@ import time
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Running device: {device}')
 
+
 def train(model, train_loader, num_classes, optimizer):
     model.train()
     loss_all = 0
@@ -30,13 +31,10 @@ def train(model, train_loader, num_classes, optimizer):
     correct = 0
     total = 0
     for data in train_loader:
-        # print( "data.y", data.y )
         data = data.to(device)
         optimizer.zero_grad()
         output = model(data.x, data.edge_index, data.batch)
         y = data.y.view(-1, num_classes)
-        #print(y.size())
-        #print(output.size())
         loss = mixup_cross_entropy_loss(output, y)
         loss.backward()
         loss_all += loss.item() * data.num_graphs
@@ -72,6 +70,7 @@ def test(model, loader, num_classes):
     loss = loss / total
     return acc, loss
 
+
 def run_test(id, dataset_name, num_layers, seed, aug):
     start = time.time()
     data_path = './'
@@ -84,7 +83,6 @@ def run_test(id, dataset_name, num_layers, seed, aug):
     lam_range = [0.1, 0.2]
     aug_ratio = 0.2
     aug_num = 10
-
 
     path = osp.join(data_path, dataset_name)
     dataset = TUDataset(path, name=dataset_name)
@@ -149,7 +147,6 @@ def run_test(id, dataset_name, num_layers, seed, aug):
     val_loader = DataLoader(val_dataset, batch_size=batch_size)
     test_loader = DataLoader(test_dataset, batch_size=batch_size)
 
-
     if model_name == "GCN":
         model = GCN(in_channels=num_features, hidden_channels=num_hidden, out_channels=num_classes,
                     num_layers=num_layers).to(device)
@@ -199,6 +196,7 @@ def run_test(id, dataset_name, num_layers, seed, aug):
     print(
         f'ID: {id}, Dataset: {dataset_name}, Aug: {aug}, Seed: {seed}, Num_layers: {num_layers}, Best epoch: {best_epoch}, Test acc: {model_test_acc}, Test loss: {model_test_loss}, Val acc: {max_val_acc}, Val loss: {model_val_loss}')
 
+
 if __name__ == '__main__':
     dataset_names = ['IMDB-BINARY', 'REDDIT-BINARY']
     model_name = 'GCN'
@@ -216,7 +214,8 @@ if __name__ == '__main__':
         for num_layers in num_layers_list:
             for seed in seeds:
                 for aug in augmentations:
-                    combination_list.append({'dataset': dataset_name, 'num_layers': num_layers, 'seed': seed, 'aug': aug})
+                    combination_list.append(
+                        {'dataset': dataset_name, 'num_layers': num_layers, 'seed': seed, 'aug': aug})
 
     print(f'Possible combinations: {len(combination_list)}')
 

@@ -22,6 +22,7 @@ import time
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Running device: {device}')
 
+
 def train(model, train_loader, num_classes, optimizer):
     model.train()
     loss_all = 0
@@ -29,13 +30,10 @@ def train(model, train_loader, num_classes, optimizer):
     correct = 0
     total = 0
     for data in train_loader:
-        # print( "data.y", data.y )
         data = data.to(device)
         optimizer.zero_grad()
         output = model(data.x, data.edge_index, data.batch)
         y = data.y.view(-1, num_classes)
-        #print(y.size())
-        #print(output.size())
         loss = mixup_cross_entropy_loss(output, y)
         loss.backward()
         loss_all += loss.item() * data.num_graphs
@@ -71,6 +69,7 @@ def test(model, loader, num_classes):
     loss = loss / total
     return acc, loss
 
+
 def corrupt_labels(dataset, ratio):
     rand_indices = random.sample(range(len(dataset)), k=int(ratio * len(dataset)))
     for i in rand_indices:
@@ -79,6 +78,7 @@ def corrupt_labels(dataset, ratio):
         else:
             dataset[i].y = torch.Tensor([1., 0.])
     return dataset
+
 
 def run_test(id, dataset_name, corruption_ratio, seed, aug):
     start = time.time()
@@ -89,7 +89,6 @@ def run_test(id, dataset_name, corruption_ratio, seed, aug):
     batch_size = 128
     lr = 0.01
     num_hidden = 64
-    no_test_runs = 10
     lam_range = [0.1, 0.2]
     aug_ratio = 0.2
     aug_num = 10
@@ -116,7 +115,6 @@ def run_test(id, dataset_name, corruption_ratio, seed, aug):
     torch.manual_seed(seed)
     random.seed(seed)
     random.shuffle(dataset)
-
 
     start = time.time()
     if aug == 'G-Mixup':
@@ -150,12 +148,6 @@ def run_test(id, dataset_name, corruption_ratio, seed, aug):
     num_features = new_dataset[0].x.shape[1]
     num_classes = new_dataset[0].y.shape[0]
 
-    # avg_num_nodes, avg_num_edges, avg_density, median_num_nodes, median_num_edges, median_density = stat_graph(new_dataset[:new_train_nums])
-    # print(f"Avg num nodes of new training graphs: {avg_num_nodes}")
-    # print(f"Avg num edges of new training graphs: {avg_num_edges}")
-    # print(f"Avg density of new training graphs: {avg_density}")
-    # print(f"Median num edges of new training graphs: {median_num_edges}")
-    # print(f"Median density of new training graphs: {median_density}")
     train_dataset = new_dataset[:new_train_nums]
     random.shuffle(train_dataset)
     val_dataset = new_dataset[new_train_nums:new_train_val_nums]
@@ -215,6 +207,7 @@ def run_test(id, dataset_name, corruption_ratio, seed, aug):
     print(
         f'ID: {id}, Dataset: {dataset_name}, Model: {model_name}, Seed: {seed}, Aug: {aug}, Best epoch: {best_epoch}, Test acc: {model_test_acc}, Test loss: {model_test_loss}, Val acc: {max_val_acc}, Val loss: {model_val_loss}')
 
+
 if __name__ == '__main__':
     dataset_names = ['IMDB-BINARY', 'REDDIT-BINARY']
     model_name = 'GCN'
@@ -232,7 +225,8 @@ if __name__ == '__main__':
         for corruption_ratio in corruption_ratios:
             for seed in seeds:
                 for aug in augmentations:
-                    combination_list.append({'dataset_name': dataset_name, 'corruption_ratio': corruption_ratio, 'seed': seed, 'aug': aug})
+                    combination_list.append(
+                        {'dataset_name': dataset_name, 'corruption_ratio': corruption_ratio, 'seed': seed, 'aug': aug})
 
     print(f'Possible combinations: {len(combination_list)}')
 
