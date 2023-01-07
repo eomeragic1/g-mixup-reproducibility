@@ -222,7 +222,7 @@ def run_test(id, dataset_name, model_name, seed, aug):
 
 if __name__ == '__main__':
     dataset_names = ['REDDIT-BINARY', 'REDDIT-MULTI-5K']
-    models = ['TopKPool']
+    models = ['DiffPool', 'MinCutPool']
     seeds = [1314, 11314, 21314, 31314, 41314, 51314, 61314, 71314, 0, 546464]
     augmentations = ['Vanilla', 'G-Mixup', 'DropEdge', 'DropNode', 'Subgraph']
 
@@ -241,6 +241,6 @@ if __name__ == '__main__':
     print(f'Possible combinations: {len(combination_list)}')
 
     for i, comb in enumerate(combination_list):
-        if i >= 97:
+        if i >= 0:
             run_test(i, comb['dataset_name'], comb['model'], comb['seed'], comb['aug'])
 
