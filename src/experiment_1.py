@@ -11,12 +11,6 @@ import matplotlib as mpl
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-dataset_names = ['IMDB-BINARY', 'REDDIT-BINARY', 'IMDB-MULTI']
-# Graphon sizes are set to match the Figure 2 in paper, the actual average number of nodes in graph sets is different
-# for REDDIT-BINARY and IMDB-MULTI
-graphon_sizes_from_figure = [19, 15, 12]
-graphon_sizes_from_average_num_of_nodes = [19, 429, 13]
-
 def experiment_1(dataset_names: list, graphon_sizes: list, data_path = './', align_max_size = 1000):
     for dataset_name, graphon_size in zip(dataset_names, graphon_sizes):
         path = osp.join(data_path, dataset_name)
@@ -70,5 +64,12 @@ def experiment_1(dataset_names: list, graphon_sizes: list, data_path = './', ali
         plt.savefig(f'../fig/{dataset_name}.png', facecolor='white', bbox_inches='tight')
         plt.show()
 
-experiment_1(dataset_names, graphon_sizes_from_figure)
-# experiment_1(dataset_names, graphon_sizes_from_average_num_of_nodes)
+if __name__ == '__main__':
+    dataset_names = ['IMDB-BINARY', 'REDDIT-BINARY', 'IMDB-MULTI']
+    # Graphon sizes are set to match the Figure 2 in paper, the actual average number of nodes in graph sets is different
+    # for REDDIT-BINARY and IMDB-MULTI
+    graphon_sizes_from_figure = [19, 15, 12]
+    graphon_sizes_from_average_num_of_nodes = [19, 429, 13]
+
+    experiment_1(dataset_names, graphon_sizes_from_figure)
+    # experiment_1(dataset_names, graphon_sizes_from_average_num_of_nodes)

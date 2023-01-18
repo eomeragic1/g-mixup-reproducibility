@@ -155,10 +155,8 @@ def logical_test_experiment_2(dataset_name = 'REDDIT-BINARY', align_max_size = 5
     draw_graphons(dataset_name, graphons, save_fig=True, fig_name='mixed_graphon_experiment')
 
 
+if __name__ == '__main__':
+    # graphon_size = int(median_num_nodes)
 
-
-
-# graphon_size = int(median_num_nodes)
-
-# experiment_2()
-logical_test_experiment_2()
+    # experiment_2()
+    logical_test_experiment_2()
